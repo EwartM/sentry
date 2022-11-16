@@ -199,7 +199,7 @@ public class App2 {
                 if (netstatOutputLineNumber == 2) {
                     subnet = s.substring(subnetChar, subnetChar + 15).trim(); 
                     netmask = s.substring(netmaskChar, netmaskChar + 15).trim(); 
-                    SubnetUtils su = new SubnetUtils(subnet, netmask);
+                    org.apache.commons.net.util.SubnetUtils su = new SubnetUtils(subnet, netmask);
                     subnetCIDR = su.getInfo().getCidrSignature();
                 }
                 if (netstatOutputLineNumber == 1) {

@@ -7,16 +7,29 @@
   <groupId>com.clearwood.sentry</groupId>
   <artifactId>sentry</artifactId>
   <version>1</version>
+  <packaging>jar</packaging>
 
   <name>sentry</name>
-  <!-- FIXME change it to the project's website -->
-  <url>http://www.example.com</url>
+  <url>http://www.oonagee.com</url>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.source>1.7</maven.compiler.source>
-    <maven.compiler.target>1.7</maven.compiler.target>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+     <mainClass>com.clearwood.sentry.App2</mainClass>
   </properties>
+  
+    <repositories>
+      <repository>
+        <id>central</id>
+        <name>Maven Central</name>
+        <layout>default</layout>
+        <url>https://repo1.maven.org/maven2</url>
+        <snapshots>
+        <enabled>false</enabled>
+        </snapshots>
+      </repository>
+    </repositories>
 
   <dependencies>
     <dependency>
@@ -52,7 +65,6 @@
   </dependencies>
 
   <build>
-    <pluginManagement><!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
       <plugins>
         <!-- clean lifecycle, see https://maven.apache.org/ref/current/maven-core/lifecycles.html#clean_Lifecycle -->
         <plugin>
@@ -75,6 +87,25 @@
         <plugin>
           <artifactId>maven-jar-plugin</artifactId>
           <version>3.0.2</version>
+          <configuration>
+            <source>1.8</source>
+            <target>1.8</target>
+            <fork>true</fork>
+            <showDeprecation>true</showDeprecation>
+            <showWarnings>true</showWarnings>
+            <compilerArgs>
+              <arg>-Xlint</arg>
+              <arg>-Xlint:-serial</arg>
+              <arg>-Xlint:-path</arg>
+            </compilerArgs>
+            <archive>
+              <manifest>
+                <addClasspath>true</addClasspath>
+                <classpathPrefix>lib/</classpathPrefix>
+                <mainClass>com.clearwood.sentry.App2</mainClass>
+              </manifest>
+            </archive>
+          </configuration>
         </plugin>
         <plugin>
           <artifactId>maven-install-plugin</artifactId>
@@ -93,7 +124,38 @@
           <artifactId>maven-project-info-reports-plugin</artifactId>
           <version>3.0.0</version>
         </plugin>
+        <plugin>
+          <groupId>io.github.rockfireredmoon</groupId>
+          <artifactId>getdown-maven-plugin</artifactId>
+          <version>0.9.1</version>
+          <executions>
+            <execution>
+              <phase>package</phase>
+              <goals>
+                <goal>updates</goal>
+              </goals>
+              <configuration>
+                <!-- This is the minimum required configuration, see git repo for more -->
+                <appbase>https://github.com/EwartM/sentry/tree/master/src/main/java/</appbase>	
+                <mainClass>App2</mainClass>			
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
+          <version>3.4.1</version>
+          <executions>
+            <execution>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
       </plugins>
-    </pluginManagement>
+
   </build>
 </project>

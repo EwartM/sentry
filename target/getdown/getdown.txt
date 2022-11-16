@@ -1,0 +1,18 @@
+# The URL from which the client is downloaded
+appbase = https://github.com/EwartM/sentry/tree/master/src/main/java/
+allow_offline = true
+
+# UI Configuration
+ui.name = null
+
+# Application jar files
+code = sentry.jar
+code = json.jar
+code = commons-net.jar
+code = getdown-launcher.jar
+
+# Resources
+
+# The main entry point for the application
+class = com.clearwood.sentry.App2
+

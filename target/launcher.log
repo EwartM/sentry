@@ -1,0 +1,22 @@
+2022/11/16 08:34:35:806 INFO Using appdir from command line: /home/user/sentry/sentry/target
+2022/11/16 08:34:35:811 INFO ------------------ VM Info ------------------
+2022/11/16 08:34:35:812 INFO -- OS Name: Linux
+2022/11/16 08:34:35:812 INFO -- OS Arch: amd64
+2022/11/16 08:34:35:812 INFO -- OS Vers: 5.16.0-12parrot1-amd64
+2022/11/16 08:34:35:812 INFO -- Java Vers: 17.0.3
+2022/11/16 08:34:35:812 INFO -- Java Home: /usr/lib/jvm/java-17-openjdk-amd64
+2022/11/16 08:34:35:812 INFO -- User Name: user
+2022/11/16 08:34:35:812 INFO -- User Home: /home/user
+2022/11/16 08:34:35:812 INFO -- Cur dir: /home/user/sentry/sentry/target/getdown
+2022/11/16 08:34:35:813 INFO ---------------------------------------------
+2022/11/16 08:34:35:891 INFO Getdown starting [version=1.8.7, built=2022-05-24 10:43]
+2022/11/16 08:34:35:892 INFO Checking whether we need to use a proxy...
+2022/11/16 08:34:35:892 INFO Found no getdown.txt file [appdir=/home/user/sentry/sentry/target]
+2022/11/16 08:34:35:893 INFO Using 'appbase' from bootstrap config [appbase=null]
+Exception in thread "Getdown" java.lang.RuntimeException: m.missing_appbase
+	at com.threerings.getdown.data.Application.initBase(Unknown Source)
+	at com.threerings.getdown.data.Application.init(Unknown Source)
+	at com.threerings.getdown.launcher.Getdown.readConfig(Unknown Source)
+	at com.threerings.getdown.launcher.Getdown.detectProxy(Unknown Source)
+	at com.threerings.getdown.launcher.Getdown.run(Unknown Source)
+	at com.threerings.getdown.launcher.a.run(Unknown Source)

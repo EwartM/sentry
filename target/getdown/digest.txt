@@ -1,0 +1,6 @@
+getdown.txt = 7cbc176c1783e80e31ecfc1090b62977
+sentry.jar = 77f48c6a6322f9afc38646fc99c1d15b
+json.jar = bd0e228cde770ddf1422cb82df9232cd
+commons-net.jar = b96b80123b194af77f38711fca35b546
+getdown-launcher.jar = 20bf278e8df186f8134901ecbdbb096d
+digest.txt = 06a1086867bc4467b923b0fac74a43ad

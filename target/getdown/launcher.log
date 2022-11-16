@@ -1,0 +1,35 @@
+2022/11/16 09:58:41:343 INFO Using appdir from command line: /home/user/sentry/sentry/target/getdown
+2022/11/16 09:58:41:355 INFO ------------------ VM Info ------------------
+2022/11/16 09:58:41:355 INFO -- OS Name: Linux
+2022/11/16 09:58:41:355 INFO -- OS Arch: amd64
+2022/11/16 09:58:41:355 INFO -- OS Vers: 5.16.0-12parrot1-amd64
+2022/11/16 09:58:41:355 INFO -- Java Vers: 17.0.3
+2022/11/16 09:58:41:356 INFO -- Java Home: /usr/lib/jvm/java-17-openjdk-amd64
+2022/11/16 09:58:41:356 INFO -- User Name: user
+2022/11/16 09:58:41:356 INFO -- User Home: /home/user
+2022/11/16 09:58:41:356 INFO -- Cur dir: /home/user/sentry/sentry/target/getdown
+2022/11/16 09:58:41:356 INFO ---------------------------------------------
+2022/11/16 09:58:41:455 INFO Getdown starting [version=1.8.7, built=2022-05-24 10:43]
+2022/11/16 09:58:41:456 INFO Checking whether we need to use a proxy...
+2022/11/16 09:58:41:699 INFO Attempting to fetch without proxy: https://github.com/EwartM/sentry/tree/master/src/main/java/getdown.txt
+2022/11/16 09:58:43:944 INFO No proxy appears to be needed.
+2022/11/16 09:58:43:946 INFO Able to lock for updates: true
+2022/11/16 09:58:43:950 INFO Verifying application: https://github.com/EwartM/sentry/tree/master/src/main/java/
+2022/11/16 09:58:43:950 INFO Version: -1
+2022/11/16 09:58:43:951 INFO Class: com.clearwood.sentry.App2
+2022/11/16 09:58:43:952 INFO Attempting to refetch 'digest.txt' from 'https://github.com/EwartM/sentry/tree/master/src/main/java/digest.txt'.
+2022/11/16 09:58:44:468 WARNING Failed to refresh non-versioned digest: Unable to download https://github.com/EwartM/sentry/tree/master/src/main/java/digest.txt [code=404]. Proceeding...
+2022/11/16 09:58:44:475 INFO Resource failed digest check [rsrc=getdown.txt, computed=7e00b2457dffbf712aeae146baf6d6086a27d0457075a5f7628b770318d26827, expected=ac2112bb8b06ab75739da2593857287efb4649af2a3f23dc08cee433fc6a8501]
+2022/11/16 09:58:44:480 INFO Attempting to refetch 'getdown.txt' from 'https://github.com/EwartM/sentry/tree/master/src/main/java/getdown.txt'.
+2022/11/16 09:58:45:902 WARNING getdown() failed.
+java.io.IOException: Unable to download https://github.com/EwartM/sentry/tree/master/src/main/java/getdown.txt [code=404]
+	at com.threerings.getdown.net.Connector.checkConnectOK(Unknown Source)
+	at com.threerings.getdown.net.Connector.download(Unknown Source)
+	at com.threerings.getdown.data.Application.downloadFile(Unknown Source)
+	at com.threerings.getdown.data.Application.downloadControlFile(Unknown Source)
+	at com.threerings.getdown.data.Application.downloadConfigFile(Unknown Source)
+	at com.threerings.getdown.data.Application.verifyMetadata(Unknown Source)
+	at com.threerings.getdown.launcher.Getdown.getdown(Unknown Source)
+	at com.threerings.getdown.launcher.Getdown.run(Unknown Source)
+	at com.threerings.getdown.launcher.a.run(Unknown Source)
+2022/11/16 09:58:45:916 INFO Releasing lock
