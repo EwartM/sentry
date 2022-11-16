@@ -147,8 +147,8 @@ public class App2 {
 	private static class TcpDump implements Runnable {
 		public void run()
 		{
-			String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i wlo1 'src net " + subnetCIDR + " and not " + gatewayIP + " and dst host " + deviceIp + "' -nn --immediate-mode";
-			//String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i wlo1 'src net 192.168.88/24 and not 192.168.88.1 and dst host 192.168.88.94' -nn --immediate-mode";
+			String tcpDumpCmd = "echo 'kali' | sudo -S tcpdump -l -i wlo1 'src net " + subnetCIDR + " and not " + gatewayIP + " and dst host " + deviceIp + "' -nn --immediate-mode";
+			//String tcpDumpCmd = "echo 'kali' | sudo -S tcpdump -l -i wlo1 'src net 192.168.88/24 and not 192.168.88.1 and dst host 192.168.88.94' -nn --immediate-mode";
             //System.out.println(tcpDumpCmd);
             ProcessBuilder processBuilder = null;
 			processBuilder = new ProcessBuilder("/bin/bash", "-c", tcpDumpCmd);
@@ -182,7 +182,8 @@ public class App2 {
 	}
 
     static void getNetstat() {
-        String netstatCmd = "echo '' | sudo -S netstat -rn";
+        String netstatCmd = "netstat -rn";
+        //String netstatCmd = "echo 'kali' | sudo -S netstat -rn";
         ProcessBuilder processBuilder = null;
         processBuilder = new ProcessBuilder("/bin/bash", "-c", netstatCmd);
         try {
