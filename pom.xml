@@ -123,7 +123,7 @@
               <configuration>
                 <!-- This is the minimum required configuration, see git repo for more -->
                 <appbase>https://github.com/EwartM/sentry/tree/master/src/main/java/</appbase>	
-                <mainClass>App2</mainClass>			
+                <mainClass>com.clearwood.sentry.App2</mainClass>
               </configuration>
             </execution>
           </executions>
