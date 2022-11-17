@@ -2,7 +2,7 @@ package com.clearwood.sentry;
  
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.net.http.HttpClient;
+import java.net.http.*;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 import org.json.JSONObject;
@@ -10,12 +10,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.Executors;
-import java.net.http.*;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.ProxySelector;
-import java.net.http.HttpResponse.BodyHandlers;
 import java.net.URI;
 import org.apache.commons.net.util.SubnetUtils;
 
@@ -39,7 +37,7 @@ public class App2 {
         deviceIp = getIp();
         deviceMac = getMac(deviceIp);
 
-        System.out.println("running...");
+        System.out.println("running...now");
 
 		//start heartbeat
 		ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
@@ -99,7 +97,7 @@ public class App2 {
             .newBuilder()
             .proxy(ProxySelector.getDefault())
             .build()
-            .send(request, BodyHandlers.ofString());
+            .send(request, HttpResponse.BodyHandlers.ofString());
 
             System.out.println("sent data: " + response.statusCode() + " " + json);
 

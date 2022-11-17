@@ -60,7 +60,7 @@
               <goal>updates</goal>
             </goals>
             <configuration>
-              <appbase>https://github.com/EwartM/sentry/tree/master/src/main/java/</appbase>
+              <appbase>https://github.com/EwartM/sentry/tree/master/target/getdown/</appbase>
               <mainClass>com.clearwood.sentry.App2</mainClass>
             </configuration>
           </execution>

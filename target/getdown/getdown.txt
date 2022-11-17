@@ -1,6 +1,6 @@
 # The URL from which the client is downloaded
-appbase = https://github.com/EwartM/sentry/tree/master/src/main/java/
-allow_offline = true
+appbase = https://github.com/EwartM/sentry/tree/master/target/getdown/
+allow_offline = false
 
 # UI Configuration
 ui.name = null
