@@ -9,7 +9,7 @@
         <module name="sentry" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
+    <bytecodeTargetLevel target="11">
       <module name="sentry" target="11" />
     </bytecodeTargetLevel>
   </component>

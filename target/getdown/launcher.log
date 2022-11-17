@@ -1,31 +1,31 @@
-2022/11/17 02:57:10:922 INFO Using appdir from command line: /home/kali/IdeaProjects/sentry/target/getdown
-2022/11/17 02:57:10:925 INFO ------------------ VM Info ------------------
-2022/11/17 02:57:10:925 INFO -- OS Name: Linux
-2022/11/17 02:57:10:925 INFO -- OS Arch: amd64
-2022/11/17 02:57:10:925 INFO -- OS Vers: 5.10.0-kali3-amd64
-2022/11/17 02:57:10:925 INFO -- Java Vers: 11.0.16
-2022/11/17 02:57:10:925 INFO -- Java Home: /usr/lib/jvm/java-11-openjdk-amd64
-2022/11/17 02:57:10:925 INFO -- User Name: kali
-2022/11/17 02:57:10:925 INFO -- User Home: /home/kali
-2022/11/17 02:57:10:925 INFO -- Cur dir: /home/kali/IdeaProjects/sentry/target/getdown
-2022/11/17 02:57:10:925 INFO ---------------------------------------------
-2022/11/17 02:57:10:959 INFO Getdown starting [version=1.8.7, built=2022-05-24 10:43]
-2022/11/17 02:57:10:961 INFO Checking whether we need to use a proxy...
-2022/11/17 02:57:11:172 INFO Attempting to fetch without proxy: https://github.com/EwartM/sentry/tree/master/target/getdown/getdown.txt
-2022/11/17 02:57:14:297 INFO No proxy appears to be needed.
-2022/11/17 02:57:14:299 INFO Able to lock for updates: true
-2022/11/17 02:57:14:299 INFO Verifying application: https://github.com/EwartM/sentry/tree/master/target/getdown/
-2022/11/17 02:57:14:299 INFO Version: -1
-2022/11/17 02:57:14:299 INFO Class: com.clearwood.sentry.App2
-2022/11/17 02:57:14:301 INFO Attempting to refetch 'digest.txt' from 'https://github.com/EwartM/sentry/tree/master/target/getdown/digest.txt'.
-2022/11/17 02:57:16:166 INFO No signing certs, not verifying digest.txt [path=digest.txt]
-2022/11/17 02:57:16:167 INFO Attempting to refetch 'digest2.txt' from 'https://github.com/EwartM/sentry/tree/master/target/getdown/digest2.txt'.
-2022/11/17 02:57:18:004 INFO No signing certs, not verifying digest.txt [path=digest2.txt]
-2022/11/17 02:57:18:019 WARNING Failed to refresh non-versioned digest: m.invalid_digest_file|~|~7e4665dcbd3d9a32181914b037ec215a9062334757f922c992734218862b2fb5. Proceeding...
-2022/11/17 02:57:18:062 INFO Verified resources [count=4, alreadyValid=0, size=577k, duration=41ms]
-2022/11/17 02:57:18:066 INFO Nothing to install.
-2022/11/17 02:57:18:067 INFO Didn't find any custom environment variables, not setting any.
-2022/11/17 02:57:18:067 INFO Running /usr/lib/jvm/java-11-openjdk-amd64/bin/java
+2022/11/17 04:36:49:090 INFO Using appdir from command line: /home/kali/IdeaProjects/sentry/target/getdown
+2022/11/17 04:36:49:093 INFO ------------------ VM Info ------------------
+2022/11/17 04:36:49:093 INFO -- OS Name: Linux
+2022/11/17 04:36:49:093 INFO -- OS Arch: amd64
+2022/11/17 04:36:49:093 INFO -- OS Vers: 5.10.0-kali3-amd64
+2022/11/17 04:36:49:093 INFO -- Java Vers: 11.0.16
+2022/11/17 04:36:49:093 INFO -- Java Home: /usr/lib/jvm/java-11-openjdk-amd64
+2022/11/17 04:36:49:094 INFO -- User Name: kali
+2022/11/17 04:36:49:094 INFO -- User Home: /home/kali
+2022/11/17 04:36:49:094 INFO -- Cur dir: /home/kali/IdeaProjects/sentry/target/getdown
+2022/11/17 04:36:49:094 INFO ---------------------------------------------
+2022/11/17 04:36:49:139 INFO Getdown starting [version=1.8.7, built=2022-05-24 10:43]
+2022/11/17 04:36:49:140 INFO Checking whether we need to use a proxy...
+2022/11/17 04:36:49:373 INFO Attempting to fetch without proxy: https://github.com/EwartM/sentry/tree/master/target/getdown/getdown.txt
+2022/11/17 04:36:52:439 INFO No proxy appears to be needed.
+2022/11/17 04:36:52:441 INFO Able to lock for updates: true
+2022/11/17 04:36:52:441 INFO Verifying application: https://github.com/EwartM/sentry/tree/master/target/getdown/
+2022/11/17 04:36:52:441 INFO Version: -1
+2022/11/17 04:36:52:441 INFO Class: com.clearwood.sentry.App2
+2022/11/17 04:36:52:444 INFO Attempting to refetch 'digest.txt' from 'https://github.com/EwartM/sentry/tree/master/target/getdown/digest.txt'.
+2022/11/17 04:36:54:567 INFO No signing certs, not verifying digest.txt [path=digest.txt]
+2022/11/17 04:36:54:569 INFO Attempting to refetch 'digest2.txt' from 'https://github.com/EwartM/sentry/tree/master/target/getdown/digest2.txt'.
+2022/11/17 04:36:56:735 INFO No signing certs, not verifying digest.txt [path=digest2.txt]
+2022/11/17 04:36:56:834 WARNING Failed to refresh non-versioned digest: m.invalid_digest_file|~|~475bc470a0828a629496a4b8155f94f6a90baaaa3d0e0454a96912f91694034e. Proceeding...
+2022/11/17 04:36:56:908 INFO Verified resources [count=4, alreadyValid=0, size=577k, duration=59ms]
+2022/11/17 04:36:56:908 INFO Nothing to install.
+2022/11/17 04:36:56:915 INFO Didn't find any custom environment variables, not setting any.
+2022/11/17 04:36:56:915 INFO Running /usr/lib/jvm/java-11-openjdk-amd64/bin/java
   -classpath
   sentry.jar:json.jar:commons-net.jar:getdown-launcher.jar
   -Dcom.threerings.getdown=true

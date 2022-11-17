@@ -37,7 +37,7 @@ public class App2 {
         deviceIp = getIp();
         deviceMac = getMac(deviceIp);
 
-        System.out.println("running...now");
+        System.out.println("running...ok");
 
 		//start heartbeat
 		ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
