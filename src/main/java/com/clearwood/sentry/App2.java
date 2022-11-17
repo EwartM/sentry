@@ -30,6 +30,7 @@ public class App2 {
     static String subnet;
     static String subnetCIDR;
     static String netmask;
+    static String iface;
 
 
 	public static void main(String[] args) {
@@ -37,7 +38,7 @@ public class App2 {
         deviceIp = getIp();
         deviceMac = getMac(deviceIp);
 
-        System.out.println("running...ok");
+        System.out.println("running...ok then");
 
 		//start heartbeat
 		ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
@@ -145,9 +146,10 @@ public class App2 {
 	private static class TcpDump implements Runnable {
 		public void run()
 		{
-			String tcpDumpCmd = "echo 'kali' | sudo -S tcpdump -l -i wlo1 'src net " + subnetCIDR + " and not " + gatewayIP + " and dst host " + deviceIp + "' -nn --immediate-mode";
-			//String tcpDumpCmd = "echo 'kali' | sudo -S tcpdump -l -i wlo1 'src net 192.168.88/24 and not 192.168.88.1 and dst host 192.168.88.94' -nn --immediate-mode";
-            //System.out.println(tcpDumpCmd);
+			//String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + " 'src net " + subnetCIDR + " and not " + gatewayIP + " and dst host " + deviceIp + "' -nn --immediate-mode";
+			String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + " 'src net " + subnetCIDR + " and dst host " + deviceIp + "' -nn --immediate-mode";
+
+            System.out.println(tcpDumpCmd);
             ProcessBuilder processBuilder = null;
 			processBuilder = new ProcessBuilder("/bin/bash", "-c", tcpDumpCmd);
 			try {
@@ -194,6 +196,7 @@ public class App2 {
             int subnetChar = 0;
             int gatewayChar = 0;
             int netmaskChar = 0;
+            int ifaceChar = 0;
             while ((s = stdInput.readLine()) != null) {
                 if (netstatOutputLineNumber == 2) {
                     subnet = s.substring(subnetChar, subnetChar + 15).trim(); 
@@ -203,12 +206,14 @@ public class App2 {
                 }
                 if (netstatOutputLineNumber == 1) {
                     gatewayIP = s.substring(gatewayChar, gatewayChar + 15).trim(); 
+                    iface = s.substring(ifaceChar, ifaceChar + 6).trim(); 
                     netstatOutputLineNumber = 2;
                 }
                 if (s.contains("Gateway")) { 
                     subnetChar = s.indexOf("Destination");
                     gatewayChar = s.indexOf("Gateway"); 
                     netmaskChar = s.indexOf("Genmask");
+                    ifaceChar = s.indexOf("Iface");
                     netstatOutputLineNumber = 1;
                 };
  

@@ -1,5 +1,5 @@
 # The URL from which the client is downloaded
-appbase = https://github.com/EwartM/sentry/tree/master/target/getdown/
+appbase = https://oonagee.com/getdown/
 allow_offline = false
 
 # UI Configuration
