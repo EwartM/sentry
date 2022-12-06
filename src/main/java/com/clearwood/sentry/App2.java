@@ -31,12 +31,16 @@ public class App2 {
     static String subnetCIDR;
     static String netmask;
     static String iface;
+    static String dnsServerIp;
+    static String gatewayMac;
 
 
 	public static void main(String[] args) {
         getNetstat();
         deviceIp = getIp();
         deviceMac = getMac(deviceIp);
+        getDNSserver();
+        getGatewayMac();
 
         System.out.println("running...ok then");
 
@@ -147,7 +151,11 @@ public class App2 {
 		public void run()
 		{
 			//String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + " 'src net " + subnetCIDR + " and not " + gatewayIP + " and dst host " + deviceIp + "' -nn --immediate-mode";
-			String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + " 'src net " + subnetCIDR + " and dst host " + deviceIp + "' -nn --immediate-mode";
+            String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + 
+            " 'net " + subnetCIDR + " and dst host " + deviceIp + " and src host not " + gatewayIP + " and src host not " + dnsServerIp + "'" + 
+            " -nn -U --print -C 1 -W 10 -w ~/Code/sentry/captures/cap.pcap";
+            //TODO
+            //get and exclude the router's MAC
 
             System.out.println(tcpDumpCmd);
             ProcessBuilder processBuilder = null;
@@ -206,24 +214,74 @@ public class App2 {
                 }
                 if (netstatOutputLineNumber == 1) {
                     gatewayIP = s.substring(gatewayChar, gatewayChar + 15).trim(); 
-                    iface = s.substring(ifaceChar, ifaceChar + 6).trim(); 
+                    iface = s.substring(ifaceChar, s.length()).trim(); 
                     netstatOutputLineNumber = 2;
                 }
                 if (s.contains("Gateway")) { 
-                    subnetChar = s.indexOf("Destination");
-                    gatewayChar = s.indexOf("Gateway"); 
-                    netmaskChar = s.indexOf("Genmask");
-                    ifaceChar = s.indexOf("Iface");
+                    subnetChar = 0;
+                    gatewayChar = 16; 
+                    netmaskChar = 32;
+                    ifaceChar = 72;
                     netstatOutputLineNumber = 1;
                 };
- 
+                
             } 
             while ((s = stdError.readLine()) != null) {
                 System.out.println("error: " + s);
             }
-        
+            //System.out.println("netw: " + subnet + " " + netmask + " " + gatewayIP + " " + iface + " " + subnetCIDR);
         } catch (Exception e) {
             System.out.println("Error Executing netstat command" + e.getStackTrace());
+        }
+    }
+
+    static void getDNSserver() {
+        String dnsCmd = "cat /etc/resolv.conf";
+        ProcessBuilder processBuilder = null;
+        processBuilder = new ProcessBuilder("/bin/bash", "-c", dnsCmd);
+        try {
+            Process process = processBuilder.start();
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+
+            String s = null;
+            while ((s = stdInput.readLine()) != null) {
+                if (s.contains("nameserver")) { 
+                    dnsServerIp = s.substring(11, s.length()).trim();
+                };
+                
+            } 
+            while ((s = stdError.readLine()) != null) {
+                System.out.println("error: " + s);
+            }
+            System.out.println("DNS server: " + dnsServerIp);
+        } catch (Exception e) {
+            System.out.println("Error Executing get DNS server command" + e.getStackTrace());
+        }
+    }
+
+    static void getGatewayMac() {
+        String arpCmd = "arp " + gatewayIP;
+        ProcessBuilder processBuilder = null;
+        processBuilder = new ProcessBuilder("/bin/bash", "-c", arpCmd);
+        try {
+            Process process = processBuilder.start();
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+
+            String s = null;
+            while ((s = stdInput.readLine()) != null) {
+                if (s.contains(gatewayIP)) { 
+                    gatewayMac = s.substring(32, 50).trim();
+                };
+                
+            } 
+            while ((s = stdError.readLine()) != null) {
+                System.out.println("error: " + s);
+            }
+            System.out.println("gateway MAC: " + gatewayMac);
+        } catch (Exception e) {
+            System.out.println("Error Executing get gateway MAC command" + e.getStackTrace());
         }
     }
 
