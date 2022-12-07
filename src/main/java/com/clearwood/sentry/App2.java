@@ -26,13 +26,15 @@ public class App2 {
     static long sendInterval = 10L; // Server POST reporting interval in sec
     static String deviceIp;
     static String deviceMac;
-    static String gatewayIP;
+    static String gatewayIp;
     static String subnet;
     static String subnetCIDR;
     static String netmask;
     static String iface;
     static String dnsServerIp;
     static String gatewayMac;
+    static String broadcast;
+    static String dhcpServerIp;
 
 
 	public static void main(String[] args) {
@@ -41,16 +43,17 @@ public class App2 {
         deviceMac = getMac(deviceIp);
         getDNSserver();
         getGatewayMac();
+        getDhcpServerIp();
 
         System.out.println("running...ok then");
+
+        //start REST client
+		Thread tcpDumpThread = new Thread(tcpDump);
+		tcpDumpThread.start();
 
 		//start heartbeat
 		ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
 		es.scheduleAtFixedRate(heartbeat, 0, 1, TimeUnit.MINUTES);
-
-		//start REST client
-		Thread tcpDumpThread = new Thread(tcpDump);
-		tcpDumpThread.start();
 
         monitorSendQueue();
 	}
@@ -117,23 +120,7 @@ public class App2 {
         }
     }
 
-    static String getMac(String ip) {
-        String mac = "not found";
-        try {
-            InetAddress localIP = InetAddress.getByName(ip);
-            NetworkInterface ni = NetworkInterface.getByInetAddress(localIP);
-            byte[] macAddress = ni.getHardwareAddress();
 
-            String[] hexadecimal = new String[macAddress.length];
-            for (int i = 0; i < macAddress.length; i++) {
-                hexadecimal[i] = String.format("%02X", macAddress[i]);
-            }
-            mac = String.join("-", hexadecimal);
-        } catch (Exception e) {
-            //TODO
-        }
-        return mac;
-    }
 
     static String getIp() {
         //method below works on linux not mac
@@ -150,12 +137,13 @@ public class App2 {
 	private static class TcpDump implements Runnable {
 		public void run()
 		{
+            String captureFilter =  " src net " + subnetCIDR + " and dst host " + deviceIp + " and host not " + gatewayIp + " and host not " + dhcpServerIp;
+            if (!gatewayIp.contains(dnsServerIp)) {
+                captureFilter += " and host not " + dnsServerIp;
+            }
+
 			//String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + " 'src net " + subnetCIDR + " and not " + gatewayIP + " and dst host " + deviceIp + "' -nn --immediate-mode";
-            String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + 
-            " 'net " + subnetCIDR + " and dst host " + deviceIp + " and src host not " + gatewayIP + " and src host not " + dnsServerIp + "'" + 
-            " -nn -U --print -C 1 -W 10 -w ~/Code/sentry/captures/cap.pcap";
-            //TODO
-            //get and exclude the router's MAC
+            String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + captureFilter + " -nn -U --print -C 1 -W 10 -w ~/Code/sentry/captures/cap.pcap";
 
             System.out.println(tcpDumpCmd);
             ProcessBuilder processBuilder = null;
@@ -189,9 +177,27 @@ public class App2 {
 		}
 	}
 
+
+    static String getMac(String ip) {
+        String mac = "not found";
+        try {
+            InetAddress localIP = InetAddress.getByName(ip);
+            NetworkInterface ni = NetworkInterface.getByInetAddress(localIP);
+            byte[] macAddress = ni.getHardwareAddress();
+
+            String[] hexadecimal = new String[macAddress.length];
+            for (int i = 0; i < macAddress.length; i++) {
+                hexadecimal[i] = String.format("%02X", macAddress[i]);
+            }
+            mac = String.join("-", hexadecimal);
+        } catch (Exception e) {
+            //TODO
+        }
+        return mac;
+    }
+
     static void getNetstat() {
         String netstatCmd = "netstat -rn";
-        //String netstatCmd = "echo 'kali' | sudo -S netstat -rn";
         ProcessBuilder processBuilder = null;
         processBuilder = new ProcessBuilder("/bin/bash", "-c", netstatCmd);
         try {
@@ -213,7 +219,7 @@ public class App2 {
                     subnetCIDR = su.getInfo().getCidrSignature();
                 }
                 if (netstatOutputLineNumber == 1) {
-                    gatewayIP = s.substring(gatewayChar, gatewayChar + 15).trim(); 
+                    gatewayIp = s.substring(gatewayChar, gatewayChar + 15).trim(); 
                     iface = s.substring(ifaceChar, s.length()).trim(); 
                     netstatOutputLineNumber = 2;
                 }
@@ -261,7 +267,7 @@ public class App2 {
     }
 
     static void getGatewayMac() {
-        String arpCmd = "arp " + gatewayIP;
+        String arpCmd = "arp " + gatewayIp;
         ProcessBuilder processBuilder = null;
         processBuilder = new ProcessBuilder("/bin/bash", "-c", arpCmd);
         try {
@@ -271,7 +277,7 @@ public class App2 {
 
             String s = null;
             while ((s = stdInput.readLine()) != null) {
-                if (s.contains(gatewayIP)) { 
+                if (s.contains(gatewayIp)) { 
                     gatewayMac = s.substring(32, 50).trim();
                 };
                 
@@ -284,5 +290,28 @@ public class App2 {
             System.out.println("Error Executing get gateway MAC command" + e.getStackTrace());
         }
     }
+
+    static void getDhcpServerIp() {
+        String dhcpCmd = "echo '' | sudo -S dhclient -v";
+        ProcessBuilder processBuilder = null;
+        processBuilder = new ProcessBuilder("/bin/bash", "-c", dhcpCmd);
+        try {
+            Process process = processBuilder.start();
+            BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            //not sure why this is coming in on the error stream
+
+            String s = null;
+            while ((s = stdError.readLine()) != null) {
+                if (s.contains("from")) { 
+                    int start = s.indexOf("from");
+                    dhcpServerIp = s.substring(start + 5, start + 20).trim();
+                };
+            } 
+            System.out.println("DHCP IP: " + dhcpServerIp);
+        } catch (Exception e) {
+            System.out.println("Error Executing get DHCP IP command" + e.getStackTrace());
+        }
+    }
+
 
 }
