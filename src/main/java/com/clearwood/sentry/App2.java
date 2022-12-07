@@ -55,9 +55,10 @@ public class App2 {
 		ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
 		es.scheduleAtFixedRate(heartbeat, 0, 1, TimeUnit.MINUTES);
 
-        monitorSendQueue();
+        //monitorSendQueue();
 	}
 
+    /* 
     static void monitorSendQueue() {
         boolean newData = false;
         LocalDateTime lastSend = LocalDateTime.now();
@@ -86,6 +87,7 @@ public class App2 {
             }
         }
     }
+    */
 
     static void sendPost(JSONObject jo) {
         try {
@@ -121,18 +123,6 @@ public class App2 {
     }
 
 
-
-    static String getIp() {
-        //method below works on linux not mac
-        String ip = "not found";
-        try(final DatagramSocket socket = new DatagramSocket()){
-            socket.connect(InetAddress.getByName("8.8.8.8"), 10002);
-            ip = socket.getLocalAddress().getHostAddress();
-        } catch (Exception e) {
-            //TODO
-        }
-        return ip;
-    }
  
 	private static class TcpDump implements Runnable {
 		public void run()
@@ -156,9 +146,20 @@ public class App2 {
                 String s = null;
 				while (true) {
 					if ((s = stdInput.readLine()) != null) {
-                        App2.postQueue.add("tcp:" + s);
+
+                        //publish capture to google function
+                        //App2.postQueue.add("tcp:" + s);
+
+                        //TODO 
+                        //use stdout as trigger for uploading PCAP file
+                        //delay random(n) seconds
+                        
+
+
 					} 
-                    /* 
+
+                    
+                    /* TODO implement error handling
 					if ((s = stdError.readLine()) != null) {
                         App2.postQueue.add("err:" + s);
 					}
@@ -170,13 +171,65 @@ public class App2 {
 		}
 	}
 
+
 	private static class Heartbeat implements Runnable {
 		@Override
 		public void run() {
-            App2.postQueue.add("hbt:" + LocalDateTime.now().toString());
+            try {
+                JSONObject jo = new JSONObject();
+                deviceIp = getIp(); //IP may have changed
+                jo.put("heartbeat", LocalDateTime.now().toString());
+                JSONObject joWrapper = new JSONObject();
+                joWrapper.put(deviceMac, jo);
+    
+                String json = jo.toString();
+                HttpRequest request = HttpRequest.newBuilder()
+                .uri(new URI("https://us-central1-clearwood-199118.cloudfunctions.net/report-1"))
+                .headers("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json))
+                .build();
+    
+                HttpResponse<String> response = HttpClient
+                .newBuilder()
+                .proxy(ProxySelector.getDefault())
+                .build()
+                .send(request, HttpResponse.BodyHandlers.ofString());
+    
+                System.out.println("sent data: " + response.statusCode() + " " + json);
+    
+                //System.out.println("response: " + response.body());
+                if (response.statusCode() != 200) {
+                    System.out.println("ERROR HTTP code: " + response.statusCode());
+                    //TODO
+                }  
+            } catch (Exception e) {
+                //TODO catch
+                System.out.println("ERROR sending data: " + e.getMessage());
+            }
 		}
 	}
 
+
+
+
+/**************************************************************
+ * 
+ * UTILITY METHODS
+ * 
+ *************************************************************/
+
+
+    static String getIp() {
+        //method below works on linux not mac
+        String ip = "not found";
+        try(final DatagramSocket socket = new DatagramSocket()){
+            socket.connect(InetAddress.getByName("8.8.8.8"), 10002);
+            ip = socket.getLocalAddress().getHostAddress();
+        } catch (Exception e) {
+            //TODO
+        }
+        return ip;
+    }
 
     static String getMac(String ip) {
         String mac = "not found";
