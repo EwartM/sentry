@@ -7,8 +7,6 @@ import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 import org.json.JSONObject;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.LinkedList;
-import java.util.Queue;
 import java.util.concurrent.Executors;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -16,6 +14,14 @@ import java.net.NetworkInterface;
 import java.net.ProxySelector;
 import java.net.URI;
 import org.apache.commons.net.util.SubnetUtils;
+
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
  
 public class App2 {
@@ -73,27 +79,37 @@ public class App2 {
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
             //BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
     
+
             String s = null;
+            LocalDateTime lastCapture = null; // Create a date object
             while (true) {
                 if ((s = stdInput.readLine()) != null) {
-
                     //publish capture to google function
                     //App2.postQueue.add("tcp:" + s);
-
                     //TODO 
                     //use stdout as trigger for uploading PCAP file
                     //delay random(n) seconds
-                    
-
-
+                    lastCapture = LocalDateTime.now();
                 } 
-
-                
                 /* TODO implement error handling
                 if ((s = stdError.readLine()) != null) {
                     App2.postQueue.add("err:" + s);
                 }
                 */
+
+                //TEMP
+                Thread.sleep(1000);
+
+                uploadPcap();
+
+                //if timer has elapsed, upload PCAP file to Google cloud bucket
+                if (lastCapture != null) {
+                    LocalDateTime nextSend = lastCapture.plusMinutes(1);
+                    if (LocalDateTime.now().isAfter(nextSend)) {
+                        uploadPcap();
+                    }
+                }
+                
             }
         } catch (Exception e) {
             System.out.println("Error Executing tcpdump command" + e);
@@ -140,13 +156,48 @@ public class App2 {
 
 
 
-
 /**************************************************************
- * 
  * UTILITY METHODS
- * 
  *************************************************************/
 
+  public static void uploadPcap() throws IOException {
+    // The ID of your GCP project
+    String projectId = "weather-368912";
+
+    // The ID of your GCS bucket
+    String bucketName = "oonagee-test1";
+
+    // The ID of your GCS object
+    String objectName = "your-object-name";
+
+    // The path to your file to upload
+    String filePath = "/home/ewart/Code/sentry/captures/cap.pcap0";
+
+    // Optional: set a generation-match precondition to avoid potential race
+    // conditions and data corruptions. The request returns a 412 error if the
+    // preconditions are not met.
+    // For a target object that does not yet exist, set the DoesNotExist precondition.
+    Storage.BlobTargetOption precondition = Storage.BlobTargetOption.doesNotExist();
+    // If the destination already exists in your bucket, instead set a generation-match
+    // precondition:
+    // Storage.BlobTargetOption precondition = Storage.BlobTargetOption.generationMatch();
+
+    Storage storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
+    BlobId blobId = BlobId.of(bucketName, objectName);
+    BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+    storage.create(blobInfo, Files.readAllBytes(Paths.get(filePath)), precondition);
+
+    System.out.println(
+        "File " + filePath + " uploaded to bucket " + bucketName + " as " + objectName);
+  }
+
+
+
+
+
+/**************************************************************
+ * NETWORK DISCOVERY
+ *************************************************************/
 
     static String getIp() {
         //method below works on linux not mac

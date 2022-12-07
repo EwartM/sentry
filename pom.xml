@@ -52,6 +52,13 @@
         <version>3.8.0</version>
     </dependency>
 
+    <!-- https://mvnrepository.com/artifact/com.google.cloud/google-cloud-storage -->
+    <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-storage</artifactId>
+        <version>2.15.1</version>
+    </dependency>
+
     <!-- https://mvnrepository.com/artifact/com.threerings.getdown/getdown-launcher -->
     <dependency>
         <groupId>com.threerings.getdown</groupId>
