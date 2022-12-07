@@ -21,8 +21,6 @@ import org.apache.commons.net.util.SubnetUtils;
 public class App2 {
 
 	static Heartbeat heartbeat = new Heartbeat();
-	static TcpDump tcpDump = new TcpDump();
-    static volatile Queue<String> postQueue = new LinkedList<String>();
     static long sendInterval = 10L; // Server POST reporting interval in sec
     static String deviceIp;
     static String deviceMac;
@@ -47,128 +45,59 @@ public class App2 {
 
         System.out.println("running...ok then");
 
-        //start REST client
-		Thread tcpDumpThread = new Thread(tcpDump);
-		tcpDumpThread.start();
-
 		//start heartbeat
 		ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
 		es.scheduleAtFixedRate(heartbeat, 0, 1, TimeUnit.MINUTES);
 
-        //monitorSendQueue();
+        //start TCPdump
+		tcpDump();
 	}
-
-    /* 
-    static void monitorSendQueue() {
-        boolean newData = false;
-        LocalDateTime lastSend = LocalDateTime.now();
-        JSONObject jo = new JSONObject();
-        while (true) {
-            if (postQueue.peek() != null) {
-                newData = true;
-                String entry = postQueue.poll();
-                if (entry.startsWith("tcp:")) {
-                    jo.put("capture_" + LocalDateTime.now().toString(), entry.substring(0, entry.length()));
-                } else if (entry.startsWith("hbt:")) {
-                    jo.put("heartbeat_" + LocalDateTime.now().toString(), entry.substring(4, entry.length()));
-                } else if (entry.startsWith("err:")) {
-                    jo.put("error_" + LocalDateTime.now().toString(), entry  .substring(4, entry.length()));
-                } else {
-                    jo.put("other_" + LocalDateTime.now().toString(), entry);
-                }
-            }
-
-            long elapsedTime = java.time.Duration.between(lastSend, LocalDateTime.now()).toSeconds();
-            if ((elapsedTime > sendInterval) && (newData)) {
-                sendPost(jo);
-                lastSend = LocalDateTime.now();
-                jo.clear();
-                newData = false;
-            }
-        }
-    }
-    */
-
-    static void sendPost(JSONObject jo) {
-        try {
-            deviceIp = getIp(); //IP may have changed
-            jo.put("ip", deviceIp);
-            JSONObject joWrapper = new JSONObject();
-            joWrapper.put(deviceMac, jo);
-
-            String json = jo.toString();
-            HttpRequest request = HttpRequest.newBuilder()
-            .uri(new URI("https://us-central1-clearwood-199118.cloudfunctions.net/report-1"))
-            .headers("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(json))
-            .build();
-
-            HttpResponse<String> response = HttpClient
-            .newBuilder()
-            .proxy(ProxySelector.getDefault())
-            .build()
-            .send(request, HttpResponse.BodyHandlers.ofString());
-
-            System.out.println("sent data: " + response.statusCode() + " " + json);
-
-            //System.out.println("response: " + response.body());
-            if (response.statusCode() != 200) {
-                System.out.println("ERROR HTTP code: " + response.statusCode());
-                //TODO
-            }  
-        } catch (Exception e) {
-            //TODO catch
-            System.out.println("ERROR sending data: " + e.getMessage());
-        }
-    }
 
 
  
-	private static class TcpDump implements Runnable {
-		public void run()
-		{
-            String captureFilter =  " src net " + subnetCIDR + " and dst host " + deviceIp + " and host not " + gatewayIp + " and host not " + dhcpServerIp;
-            if (!gatewayIp.contains(dnsServerIp)) {
-                captureFilter += " and host not " + dnsServerIp;
-            }
+	private static void tcpDump() {
 
-			//String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + " 'src net " + subnetCIDR + " and not " + gatewayIP + " and dst host " + deviceIp + "' -nn --immediate-mode";
-            String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + captureFilter + " -nn -U --print -C 1 -W 10 -w ~/Code/sentry/captures/cap.pcap";
+        String captureFilter =  " src net " + subnetCIDR + " and dst host " + deviceIp + " and host not " + gatewayIp + " and host not " + dhcpServerIp;
+        if (!gatewayIp.contains(dnsServerIp)) {
+            captureFilter += " and host not " + dnsServerIp;
+        }
 
-            System.out.println(tcpDumpCmd);
-            ProcessBuilder processBuilder = null;
-			processBuilder = new ProcessBuilder("/bin/bash", "-c", tcpDumpCmd);
-			try {
-				Process process = processBuilder.start();
-				BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                //BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-		
-                String s = null;
-				while (true) {
-					if ((s = stdInput.readLine()) != null) {
+        //String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + " 'src net " + subnetCIDR + " and not " + gatewayIP + " and dst host " + deviceIp + "' -nn --immediate-mode";
+        String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + captureFilter + " -nn -U --print -C 1 -W 10 -w ~/Code/sentry/captures/cap.pcap";
 
-                        //publish capture to google function
-                        //App2.postQueue.add("tcp:" + s);
+        System.out.println(tcpDumpCmd);
+        ProcessBuilder processBuilder = null;
+        processBuilder = new ProcessBuilder("/bin/bash", "-c", tcpDumpCmd);
+        try {
+            Process process = processBuilder.start();
+            BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            //BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+    
+            String s = null;
+            while (true) {
+                if ((s = stdInput.readLine()) != null) {
 
-                        //TODO 
-                        //use stdout as trigger for uploading PCAP file
-                        //delay random(n) seconds
-                        
+                    //publish capture to google function
+                    //App2.postQueue.add("tcp:" + s);
 
-
-					} 
-
+                    //TODO 
+                    //use stdout as trigger for uploading PCAP file
+                    //delay random(n) seconds
                     
-                    /* TODO implement error handling
-					if ((s = stdError.readLine()) != null) {
-                        App2.postQueue.add("err:" + s);
-					}
-                    */
-				}
-			} catch (Exception e) {
-				System.out.println("Error Executing tcpdump command" + e);
-			}
-		}
+
+
+                } 
+
+                
+                /* TODO implement error handling
+                if ((s = stdError.readLine()) != null) {
+                    App2.postQueue.add("err:" + s);
+                }
+                */
+            }
+        } catch (Exception e) {
+            System.out.println("Error Executing tcpdump command" + e);
+        }
 	}
 
 
