@@ -14,20 +14,15 @@ import java.net.NetworkInterface;
 import java.net.ProxySelector;
 import java.net.URI;
 import org.apache.commons.net.util.SubnetUtils;
-
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 
  
 public class App2 {
 
 	static Heartbeat heartbeat = new Heartbeat();
-    static long sendInterval = 10L; // Server POST reporting interval in sec
+    static long pcapUploadDelay = 30L; // Delay between capture and upload in sec
+    static long heartbeatInterval = 10L; // Server heartbeat interval in sec
     static String deviceIp;
     static String deviceMac;
     static String gatewayIp;
@@ -40,6 +35,12 @@ public class App2 {
     static String broadcast;
     static String dhcpServerIp;
 
+    static LocalDateTime nextSend = null;
+    static LocalDateTime lastCapture = null; // Create a date object
+
+/**************************************************************
+ * MAIN
+ *************************************************************/
 
 	public static void main(String[] args) {
         getNetstat();
@@ -59,10 +60,11 @@ public class App2 {
 		tcpDump();
 	}
 
+/**************************************************************
+ * PCAP CAPTURE AND UPLOAD
+ *************************************************************/
 
- 
 	private static void tcpDump() {
-
         String captureFilter =  " src net " + subnetCIDR + " and dst host " + deviceIp + " and host not " + gatewayIp + " and host not " + dhcpServerIp;
         if (!gatewayIp.contains(dnsServerIp)) {
             captureFilter += " and host not " + dnsServerIp;
@@ -79,69 +81,88 @@ public class App2 {
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
             //BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
     
-
             String s = null;
-            LocalDateTime lastCapture = null; // Create a date object
             while (true) {
                 if ((s = stdInput.readLine()) != null) {
                     //publish capture to google function
                     //App2.postQueue.add("tcp:" + s);
-                    //TODO 
-                    //use stdout as trigger for uploading PCAP file
-                    //delay random(n) seconds
+
+                    //upload is triggered by heartbeat thread
                     lastCapture = LocalDateTime.now();
+                    nextSend = lastCapture.plusSeconds(pcapUploadDelay);
                 } 
                 /* TODO implement error handling
                 if ((s = stdError.readLine()) != null) {
                     App2.postQueue.add("err:" + s);
                 }
                 */
-
-                //TEMP
-                Thread.sleep(1000);
-
-                uploadPcap();
-
-                //if timer has elapsed, upload PCAP file to Google cloud bucket
-                if (lastCapture != null) {
-                    LocalDateTime nextSend = lastCapture.plusMinutes(1);
-                    if (LocalDateTime.now().isAfter(nextSend)) {
-                        uploadPcap();
-                    }
-                }
-                
             }
         } catch (Exception e) {
             System.out.println("Error Executing tcpdump command" + e);
         }
 	}
 
+    //upload triggered by heartbeat thread
+    public static void uploadPcap() throws IOException {
+        try {
+            deviceIp = getIp(); //IP may have changed
+            String fileName = "/home/ewart/Code/sentry/captures/cap.pcap0";
+    
+            HttpRequest request = HttpRequest.newBuilder()
+            .uri(new URI("https://save-pcap-7ffm66njka-uc.a.run.app"))
+            .headers("Content-Type", "application/octet-stream")
+            .POST(HttpRequest.BodyPublishers.ofFile(
+                Paths.get(fileName)))
+            .build();
+    
+            HttpResponse<String> response = HttpClient
+            .newBuilder()
+            .proxy(ProxySelector.getDefault())
+            .build()
+            .send(request, HttpResponse.BodyHandlers.ofString());
+    
+            System.out.println("sent file code: " + response.statusCode() +  " " + fileName );
+    
+            //System.out.println("response: " + response.body());
+            if (response.statusCode() != 200) {
+                System.out.println("ERROR HTTP code: " + response.statusCode());
+                //TODO
+            }  
+        } catch (Exception e) {
+            //TODO catch
+            System.out.println("ERROR sending data: " + e.getMessage());
+        }
+    }
 
-	private static class Heartbeat implements Runnable {
-		@Override
-		public void run() {
+
+    private static class Heartbeat implements Runnable {
+        @Override
+        public void run() {
+
+            //-------------------------------------
+            // send heartbeat
             try {
                 JSONObject jo = new JSONObject();
                 deviceIp = getIp(); //IP may have changed
                 jo.put("heartbeat", LocalDateTime.now().toString());
                 JSONObject joWrapper = new JSONObject();
                 joWrapper.put(deviceMac, jo);
-    
+
                 String json = jo.toString();
                 HttpRequest request = HttpRequest.newBuilder()
                 .uri(new URI("https://us-central1-clearwood-199118.cloudfunctions.net/report-1"))
                 .headers("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
-    
+
                 HttpResponse<String> response = HttpClient
                 .newBuilder()
                 .proxy(ProxySelector.getDefault())
                 .build()
                 .send(request, HttpResponse.BodyHandlers.ofString());
-    
+
                 System.out.println("sent data: " + response.statusCode() + " " + json);
-    
+
                 //System.out.println("response: " + response.body());
                 if (response.statusCode() != 200) {
                     System.out.println("ERROR HTTP code: " + response.statusCode());
@@ -151,45 +172,26 @@ public class App2 {
                 //TODO catch
                 System.out.println("ERROR sending data: " + e.getMessage());
             }
-		}
-	}
 
 
-
-/**************************************************************
- * UTILITY METHODS
- *************************************************************/
-
-  public static void uploadPcap() throws IOException {
-    // The ID of your GCP project
-    String projectId = "weather-368912";
-
-    // The ID of your GCS bucket
-    String bucketName = "oonagee-test1";
-
-    // The ID of your GCS object
-    String objectName = "your-object-name";
-
-    // The path to your file to upload
-    String filePath = "/home/ewart/Code/sentry/captures/cap.pcap0";
-
-    // Optional: set a generation-match precondition to avoid potential race
-    // conditions and data corruptions. The request returns a 412 error if the
-    // preconditions are not met.
-    // For a target object that does not yet exist, set the DoesNotExist precondition.
-    Storage.BlobTargetOption precondition = Storage.BlobTargetOption.doesNotExist();
-    // If the destination already exists in your bucket, instead set a generation-match
-    // precondition:
-    // Storage.BlobTargetOption precondition = Storage.BlobTargetOption.generationMatch();
-
-    Storage storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
-    BlobId blobId = BlobId.of(bucketName, objectName);
-    BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
-    storage.create(blobInfo, Files.readAllBytes(Paths.get(filePath)), precondition);
-
-    System.out.println(
-        "File " + filePath + " uploaded to bucket " + bucketName + " as " + objectName);
-  }
+            //-------------------------------------
+            // if timer has elapsed, upload PCAP file to Google cloud bucket
+            try {
+                if (lastCapture != null) {
+                    System.out.println("lastCapture: " + lastCapture);
+                    System.out.println("nextSend: " + nextSend);
+                    boolean send = (LocalDateTime.now().isAfter(nextSend));
+                    System.out.println("send?: " + send);
+                    if (send) {
+                        uploadPcap();
+                        lastCapture = null;
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("Error Executing tcpdump command" + e);
+            }
+        }
+    }
 
 
 
