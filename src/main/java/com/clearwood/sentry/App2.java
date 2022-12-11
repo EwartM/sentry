@@ -13,8 +13,6 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.ProxySelector;
 import java.net.URI;
-
-import org.apache.commons.net.imap.IMAPClient.FETCH_ITEM_NAMES;
 import org.apache.commons.net.util.SubnetUtils;
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -26,9 +24,12 @@ import org.apache.commons.codec.digest.*;
  
 public class App2 {
 
+    static final String PCAP_ENDPOINT = "https://save-pcap-7ffm66njka-uc.a.run.app";
+    static final String HEARTBEAT_ENDPOINT = "https://us-central1-clearwood-199118.cloudfunctions.net/report-1";
+    static final String ERROR_ENDPOINT = "https://us-central1-clearwood-199118.cloudfunctions.net/report-1";
 	static Heartbeat heartbeat = new Heartbeat();
-    static long pcapUploadDelay = 30L; // Delay between capture and upload in sec
-    static long heartbeatInterval = 10L; // Server heartbeat interval in sec
+    static long pcapUploadDelay = 30L; //Delay between capture and upload in sec
+    static long heartbeatInterval = 10L; //Server heartbeat interval in sec
     static String deviceIp;
     static String deviceMac;
     static String gatewayIp;
@@ -41,7 +42,7 @@ public class App2 {
     static String broadcast;
     static String dhcpServerIp;
     static LocalDateTime nextSend = null;
-    static LocalDateTime lastCapture = null; // Create a date object
+    static LocalDateTime lastCapture = null; //timestamp of last captured packets 
 
 /**************************************************************
  * MAIN
@@ -55,6 +56,19 @@ public class App2 {
         getGatewayMac();
         getDhcpServerIp();
 
+        try {
+            Path path = Paths.get("hashes");
+            if (Files.notExists(path)) {
+                Files.createDirectories(path);
+            }
+            path = Paths.get("captures");
+            if (Files.notExists(path)) {
+                Files.createDirectories(path);
+            }
+        } catch (Exception e) {
+            System.out.println("ERROR creating capture and/or hash folder: " + e.getMessage());
+        }
+
 		//start heartbeat
 		ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
 		es.scheduleAtFixedRate(heartbeat, 0, 1, TimeUnit.MINUTES);
@@ -64,34 +78,37 @@ public class App2 {
 	}
 
 /**************************************************************
- * PCAP CAPTURE AND UPLOAD
+ * UPLOAD ERRORS TO ENDPOINT
  *************************************************************/
 
+
+/**************************************************************
+ * CAPTURE AND UPLOAD PCAP 
+ *************************************************************/
+
+    //use TCPdump to capture incoming packets to pcap files
+    //limit to traffic directed at this device
+    //and avoid capturing normal DHCP and ARP traffic
+    //save to 5 files in round robin  
 	private static void tcpDump() {
-        String mac = deviceMac.replace('-', ':');
+        //TCPdump options
         String captureFilter =  " src net " + subnetCIDR + " and dst host " + deviceIp + 
         " and host not " + gatewayIp + " and host not " + dhcpServerIp + " and not ether broadcast";
         if (!gatewayIp.contains(dnsServerIp)) {
             captureFilter += " and host not " + dnsServerIp;
         }
-
-        //String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + " 'src net " + subnetCIDR + " and not " + gatewayIP + " and dst host " + deviceIp + "' -nn --immediate-mode";
         String tcpDumpCmd = "echo '' | sudo -S tcpdump -l -i " + iface + captureFilter + " -nn -U --print -C 1 -W 10 -w ~/Code/sentry/captures/cap.pcap";
-
         System.out.println(tcpDumpCmd);
+        //run TCPdump
         ProcessBuilder processBuilder = null;
         processBuilder = new ProcessBuilder("/bin/bash", "-c", tcpDumpCmd);
         try {
             Process process = processBuilder.start();
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
             //BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-    
             String s = null;
             while (true) {
                 if ((s = stdInput.readLine()) != null) {
-                    //publish capture to google function
-                    //App2.postQueue.add("tcp:" + s);
-
                     //upload is triggered by heartbeat thread 
                     lastCapture = LocalDateTime.now();
                     nextSend = lastCapture.plusSeconds(pcapUploadDelay);
@@ -107,55 +124,51 @@ public class App2 {
         }
 	}
 
-    //upload triggered by heartbeat thread
+    //upload pcap all files that have not yet been uploaded to endpoint
+    //triggered by heartbeat thread
     public static void uploadCaptures() throws IOException {
         try {   
-            //iterate through existing files that have hashes as their names
+            //iterate through hashes of uploaded files
             File dir = new File("captures");
             File[] directoryListing = dir.listFiles();
-            if (directoryListing != null) {
-              for (File capture : directoryListing) {
-                if (!uploaded(capture)) {
-                    uploadPcap(capture);
-                }
-              }
-            } 
+            for (File capture : directoryListing) {
+            if (!uploaded(capture)) {
+                uploadPcap(capture);
+            }
+            }
         } catch (Exception e) {
-            //TODO catch
             System.out.println("ERROR uploading captures: " + e.getMessage());
         }
     }
 
+    //execute the upload
     public static void uploadPcap(File file) throws IOException {
         try {   
             HttpRequest request = HttpRequest.newBuilder()
-            .uri(new URI("https://save-pcap-7ffm66njka-uc.a.run.app"))
+            .uri(new URI(PCAP_ENDPOINT))
             .headers("Content-Type", "application/octet-stream")
             .POST(HttpRequest.BodyPublishers.ofFile(
                 Paths.get(file.getPath())))
             .build(); 
-    
             HttpResponse<String> response = HttpClient
             .newBuilder()
             .proxy(ProxySelector.getDefault())
             .build()
             .send(request, HttpResponse.BodyHandlers.ofString());
-    
-            System.out.println("sent file code: " + response.statusCode() +  " " + file.getName());
-    
+            //System.out.println("sent file code: " + response.statusCode() +  " " + file.getName());
             //System.out.println("response: " + response.body());
             if (response.statusCode() != 200) {
                 System.out.println("ERROR HTTP code: " + response.statusCode());
-                //TODO
             } else {
                 //record hash by creating a file named with the hash
-                CreateFile(md5hash(file));
+                createHashFile(md5hash(file));
             }
         } catch (Exception e) {
             System.out.println("ERROR sending data: " + e.getMessage());
         }
     }
 
+    //check hash to confirm if the pcap file not already been uploaded to the server 
     public static boolean uploaded(File candidate) {
         boolean uploaded = false;
         try {
@@ -175,7 +188,6 @@ public class App2 {
         }
         return uploaded;
     }
-
     public static String md5hash(File f) {
         String md5Hex = "";
         try {
@@ -186,8 +198,7 @@ public class App2 {
         }
         return md5Hex;
     }
-
-    static void CreateFile(String filename) {
+    static void createHashFile(String filename) {
         try {
             Path path = Paths.get("hashes");
             if (Files.notExists(path)) {
@@ -195,12 +206,12 @@ public class App2 {
             }
             File myObj = new File("hashes/" + filename);
             if (myObj.createNewFile()) {
-                System.out.println("File created: " + myObj.getName());
+                System.out.println("hash file created: " + myObj.getName());
             } else {
-                System.out.println("File already exists.");
+                System.out.println("hash file already exists.");
             }
         } catch (IOException e) {
-          System.out.println("An error occurred.");
+          System.out.println("An error occurred creating the hash file");
           e.printStackTrace();
         }
     }
@@ -225,7 +236,7 @@ public class App2 {
 
                 String json = jo.toString();
                 HttpRequest request = HttpRequest.newBuilder()
-                .uri(new URI("https://us-central1-clearwood-199118.cloudfunctions.net/report-1"))
+                .uri(new URI(HEARTBEAT_ENDPOINT))
                 .headers("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json))
                 .build();
