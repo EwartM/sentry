@@ -47,7 +47,6 @@ public class App2 {
 /**************************************************************
  * MAIN
  *************************************************************/
-
 	public static void main(String[] args) {
         getNetstat();
         getIp();
@@ -66,7 +65,7 @@ public class App2 {
                 Files.createDirectories(path);
             }
         } catch (Exception e) {
-            System.out.println("ERROR creating capture and/or hash folder: " + e.getMessage());
+            addToErrorLog("ERROR creating capture and/or hash folder", e);
         }
 
 		//start heartbeat
@@ -80,12 +79,18 @@ public class App2 {
 /**************************************************************
  * UPLOAD ERRORS TO ENDPOINT
  *************************************************************/
-
+    private static void addToErrorLog(String errorMsg, Exception e) {
+        JSONObject jo = new JSONObject();
+        errorMsg += ": ";
+        if (e != null) {
+            errorMsg += " msg: " + e.getMessage() + " trace: " + e.getStackTrace();
+        }
+        jo.put(LocalDateTime.now().toString(), errorMsg);
+    }
 
 /**************************************************************
  * CAPTURE AND UPLOAD PCAP 
  *************************************************************/
-
     //use TCPdump to capture incoming packets to pcap files
     //limit to traffic directed at this device
     //and avoid capturing normal DHCP and ARP traffic
@@ -120,10 +125,9 @@ public class App2 {
                 */
             }
         } catch (Exception e) {
-            System.out.println("Error Executing tcpdump command" + e);
+            addToErrorLog("ERROR Executing tcpdump command", e);
         }
 	}
-
     //upload pcap all files that have not yet been uploaded to endpoint
     //triggered by heartbeat thread
     public static void uploadCaptures() throws IOException {
@@ -137,10 +141,9 @@ public class App2 {
             }
             }
         } catch (Exception e) {
-            System.out.println("ERROR uploading captures: " + e.getMessage());
+            addToErrorLog("ERROR uploading captures", e);
         }
     }
-
     //execute the upload
     public static void uploadPcap(File file) throws IOException {
         try {   
@@ -158,16 +161,15 @@ public class App2 {
             //System.out.println("sent file code: " + response.statusCode() +  " " + file.getName());
             //System.out.println("response: " + response.body());
             if (response.statusCode() != 200) {
-                System.out.println("ERROR HTTP code: " + response.statusCode());
+                addToErrorLog("ERROR uploading PCAP HTTP code: " + response.statusCode(), null);
             } else {
                 //record hash by creating a file named with the hash
                 createHashFile(md5hash(file));
             }
         } catch (Exception e) {
-            System.out.println("ERROR sending data: " + e.getMessage());
+            addToErrorLog("ERROR sending PCAP data", e);
         }
     }
-
     //check hash to confirm if the pcap file not already been uploaded to the server 
     public static boolean uploaded(File candidate) {
         boolean uploaded = false;
@@ -184,7 +186,7 @@ public class App2 {
               }
             } 
         } catch (Exception e) {
-            System.out.println("ERROR checking if file has been uploaded: " + e.getMessage());
+            addToErrorLog("ERROR checking if file has been uploaded", e);
         }
         return uploaded;
     }
@@ -194,10 +196,11 @@ public class App2 {
             byte[] arr = Files.readAllBytes(f.toPath());
             md5Hex = DigestUtils.md5Hex(arr).toUpperCase();
         } catch (Exception e) {
-            System.out.println("ERROR hashing file: " + e.getMessage());
+            addToErrorLog("ERROR hashing file", e);
         }
         return md5Hex;
     }
+    //store the hashes of uploaded files as filenames in the hahses folder 
     static void createHashFile(String filename) {
         try {
             Path path = Paths.get("hashes");
@@ -206,24 +209,24 @@ public class App2 {
             }
             File myObj = new File("hashes/" + filename);
             if (myObj.createNewFile()) {
-                System.out.println("hash file created: " + myObj.getName());
+                //System.out.println("hash file created: " + myObj.getName());
             } else {
-                System.out.println("hash file already exists.");
+                //System.out.println("hash file already exists.");
             }
         } catch (IOException e) {
-          System.out.println("An error occurred creating the hash file");
-          e.printStackTrace();
+            addToErrorLog("An error occurred creating the hash file", e);
         }
     }
 
 
 
 
-
+/**************************************************************
+ * SCHEDULED UPLOAD OF HEARTBEATS / PCAP FILES / ERROR LOGS 
+ *************************************************************/
     private static class Heartbeat implements Runnable {
         @Override
         public void run() {
-
             //-------------------------------------
             // send heartbeat
             //-------------------------------------
@@ -247,16 +250,14 @@ public class App2 {
                 .build()
                 .send(request, HttpResponse.BodyHandlers.ofString()); 
 
-                System.out.println("sent data: " + response.statusCode() + " " + json);
+                System.out.println("sent heartbeat: " + response.statusCode() + " " + json);
 
                 //System.out.println("response: " + response.body());
                 if (response.statusCode() != 200) {
-                    System.out.println("ERROR HTTP code: " + response.statusCode());
-                    //TODO
+                    addToErrorLog("ERROR sending heartbeat HTTP code: " + response.statusCode(), null);
                 }  
             } catch (Exception e) {
-                //TODO catch
-                System.out.println("ERROR sending data: " + e.getMessage());
+                addToErrorLog("ERROR sending heartbeat data", e);
             }
 
             //-------------------------------------
@@ -277,7 +278,7 @@ public class App2 {
                 }
                 */
             } catch (Exception e) {
-                System.out.println("Error Executing tcpdump command" + e);
+                addToErrorLog("ERROR Executing uploading captures", e);
             }
         }
     }
@@ -289,17 +290,17 @@ public class App2 {
 /**************************************************************
  * NETWORK DISCOVERY
  *************************************************************/
-
+    //discover various network params 
+    //mainly used to filter out normal traffic
     static void getIp() {
         //method below works on linux not mac
         try(final DatagramSocket socket = new DatagramSocket()){
             socket.connect(InetAddress.getByName("8.8.8.8"), 10002);
             deviceIp = socket.getLocalAddress().getHostAddress();
         } catch (Exception e) {
-            //TODO
+            addToErrorLog("ERROR getting device IP", e);
         }
     }
-
     static void getMac(String ip) {
         try {
             InetAddress localIP = InetAddress.getByName(ip);
@@ -311,10 +312,9 @@ public class App2 {
             }
             deviceMac = String.join("-", hexadecimal);
         } catch (Exception e) {
-            //TODO
+            addToErrorLog("ERROR getting device MAC", e);
         }
     }
-
     static void getNetstat() {
         String netstatCmd = "netstat -rn";
         ProcessBuilder processBuilder = null;
@@ -350,14 +350,13 @@ public class App2 {
                 };
             } 
             while ((s = stdError.readLine()) != null) {
-                System.out.println("error: " + s);
+                addToErrorLog("ERROR in netstat output: " + s, null);
             }
             //System.out.println("netw: " + subnet + " " + netmask + " " + gatewayIP + " " + iface + " " + subnetCIDR);
         } catch (Exception e) {
-            System.out.println("Error Executing netstat command" + e.getStackTrace());
+            addToErrorLog("ERROR executing netstat command", e);
         }
     }
-
     static void getDNSserver() {
         String dnsCmd = "cat /etc/resolv.conf";
         ProcessBuilder processBuilder = null;
@@ -366,7 +365,6 @@ public class App2 {
             Process process = processBuilder.start();
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
             BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-
             String s = null;
             while ((s = stdInput.readLine()) != null) {
                 if (s.contains("nameserver")) { 
@@ -374,14 +372,13 @@ public class App2 {
                 };  
             } 
             while ((s = stdError.readLine()) != null) {
-                System.out.println("error: " + s);
+                addToErrorLog("ERROR in resolv.conf output: " + s, null);
             }
-            System.out.println("DNS server: " + dnsServerIp);
+            //System.out.println("DNS server: " + dnsServerIp);
         } catch (Exception e) {
-            System.out.println("Error Executing get DNS server command" + e.getStackTrace());
+            addToErrorLog("Error getting DNS server", e);
         }
     }
-
     static void getGatewayMac() {
         String arpCmd = "arp " + gatewayIp;
         ProcessBuilder processBuilder = null;
@@ -390,7 +387,6 @@ public class App2 {
             Process process = processBuilder.start();
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
             BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-
             String s = null;
             while ((s = stdInput.readLine()) != null) {
                 if (s.contains(gatewayIp)) { 
@@ -398,14 +394,13 @@ public class App2 {
                 };
             } 
             while ((s = stdError.readLine()) != null) {
-                System.out.println("error: " + s);
+                addToErrorLog("ERROR in arp output: " + s, null);
             }
-            System.out.println("gateway MAC: " + gatewayMac);
+            //System.out.println("gateway MAC: " + gatewayMac);
         } catch (Exception e) {
-            System.out.println("Error Executing get gateway MAC command" + e.getStackTrace());
+            addToErrorLog("Error Executing get gateway MAC command", e);
         }
     }
-
     static void getDhcpServerIp() {
         String dhcpCmd = "echo '' | sudo -S dhclient -v";
         ProcessBuilder processBuilder = null;
@@ -414,7 +409,6 @@ public class App2 {
             Process process = processBuilder.start();
             BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
             //not sure why this is coming in on the error stream
-
             String s = null;
             while ((s = stdError.readLine()) != null) {
                 if (s.contains("from")) { 
@@ -422,12 +416,10 @@ public class App2 {
                     dhcpServerIp = s.substring(start + 5, start + 20).trim();
                 };
             } 
-            System.out.println("DHCP IP: " + dhcpServerIp);
+            //System.out.println("DHCP IP: " + dhcpServerIp);
         } catch (Exception e) {
-            System.out.println("Error Executing get DHCP IP command" + e.getStackTrace());
+            addToErrorLog("Error getting DHCP IP address", e);
         }
     }
-
-
  
 }
