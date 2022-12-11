@@ -65,7 +65,7 @@ public class App2 {
                 Files.createDirectories(path);
             }
         } catch (Exception e) {
-            addToErrorLog("ERROR creating capture and/or hash folder", e);
+            addToErrorLog("ERROR creating capture and/or hash folder", e); 
         }
 
 		//start heartbeat
