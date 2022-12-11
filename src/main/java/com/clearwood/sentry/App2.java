@@ -13,9 +13,15 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.ProxySelector;
 import java.net.URI;
+
+import org.apache.commons.net.imap.IMAPClient.FETCH_ITEM_NAMES;
 import org.apache.commons.net.util.SubnetUtils;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.nio.file.Path;
+import java.io.File;
+import java.nio.file.Files;
+import org.apache.commons.codec.digest.*;
 
  
 public class App2 {
@@ -34,7 +40,6 @@ public class App2 {
     static String gatewayMac;
     static String broadcast;
     static String dhcpServerIp;
-
     static LocalDateTime nextSend = null;
     static LocalDateTime lastCapture = null; // Create a date object
 
@@ -44,13 +49,11 @@ public class App2 {
 
 	public static void main(String[] args) {
         getNetstat();
-        deviceIp = getIp();
-        deviceMac = getMac(deviceIp);
+        getIp();
+        getMac(deviceIp);
         getDNSserver();
         getGatewayMac();
         getDhcpServerIp();
-
-        System.out.println("running...ok then");
 
 		//start heartbeat
 		ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
@@ -65,7 +68,9 @@ public class App2 {
  *************************************************************/
 
 	private static void tcpDump() {
-        String captureFilter =  " src net " + subnetCIDR + " and dst host " + deviceIp + " and host not " + gatewayIp + " and host not " + dhcpServerIp;
+        String mac = deviceMac.replace('-', ':');
+        String captureFilter =  " src net " + subnetCIDR + " and dst host " + deviceIp + 
+        " and host not " + gatewayIp + " and host not " + dhcpServerIp + " and not ether broadcast";
         if (!gatewayIp.contains(dnsServerIp)) {
             captureFilter += " and host not " + dnsServerIp;
         }
@@ -87,7 +92,7 @@ public class App2 {
                     //publish capture to google function
                     //App2.postQueue.add("tcp:" + s);
 
-                    //upload is triggered by heartbeat thread
+                    //upload is triggered by heartbeat thread 
                     lastCapture = LocalDateTime.now();
                     nextSend = lastCapture.plusSeconds(pcapUploadDelay);
                 } 
@@ -103,17 +108,32 @@ public class App2 {
 	}
 
     //upload triggered by heartbeat thread
-    public static void uploadPcap() throws IOException {
-        try {
-            deviceIp = getIp(); //IP may have changed
-            String fileName = "/home/ewart/Code/sentry/captures/cap.pcap0";
-    
+    public static void uploadCaptures() throws IOException {
+        try {   
+            //iterate through existing files that have hashes as their names
+            File dir = new File("captures");
+            File[] directoryListing = dir.listFiles();
+            if (directoryListing != null) {
+              for (File capture : directoryListing) {
+                if (!uploaded(capture)) {
+                    uploadPcap(capture);
+                }
+              }
+            } 
+        } catch (Exception e) {
+            //TODO catch
+            System.out.println("ERROR uploading captures: " + e.getMessage());
+        }
+    }
+
+    public static void uploadPcap(File file) throws IOException {
+        try {   
             HttpRequest request = HttpRequest.newBuilder()
             .uri(new URI("https://save-pcap-7ffm66njka-uc.a.run.app"))
             .headers("Content-Type", "application/octet-stream")
             .POST(HttpRequest.BodyPublishers.ofFile(
-                Paths.get(fileName)))
-            .build();
+                Paths.get(file.getPath())))
+            .build(); 
     
             HttpResponse<String> response = HttpClient
             .newBuilder()
@@ -121,18 +141,72 @@ public class App2 {
             .build()
             .send(request, HttpResponse.BodyHandlers.ofString());
     
-            System.out.println("sent file code: " + response.statusCode() +  " " + fileName );
+            System.out.println("sent file code: " + response.statusCode() +  " " + file.getName());
     
             //System.out.println("response: " + response.body());
             if (response.statusCode() != 200) {
                 System.out.println("ERROR HTTP code: " + response.statusCode());
                 //TODO
-            }  
+            } else {
+                //record hash by creating a file named with the hash
+                CreateFile(md5hash(file));
+            }
         } catch (Exception e) {
-            //TODO catch
             System.out.println("ERROR sending data: " + e.getMessage());
         }
     }
+
+    public static boolean uploaded(File candidate) {
+        boolean uploaded = false;
+        try {
+            String candidateHash = md5hash(candidate);
+            //iterate through existing files that have hashes as their names
+            File dir = new File("hashes");
+            File[] directoryListing = dir.listFiles();
+            if (directoryListing != null) {
+              for (File hash : directoryListing) {
+                if (hash.getName().contains(candidateHash)) {
+                    uploaded = true;
+                }
+              }
+            } 
+        } catch (Exception e) {
+            System.out.println("ERROR checking if file has been uploaded: " + e.getMessage());
+        }
+        return uploaded;
+    }
+
+    public static String md5hash(File f) {
+        String md5Hex = "";
+        try {
+            byte[] arr = Files.readAllBytes(f.toPath());
+            md5Hex = DigestUtils.md5Hex(arr).toUpperCase();
+        } catch (Exception e) {
+            System.out.println("ERROR hashing file: " + e.getMessage());
+        }
+        return md5Hex;
+    }
+
+    static void CreateFile(String filename) {
+        try {
+            Path path = Paths.get("hashes");
+            if (Files.notExists(path)) {
+                Files.createDirectories(path);
+            }
+            File myObj = new File("hashes/" + filename);
+            if (myObj.createNewFile()) {
+                System.out.println("File created: " + myObj.getName());
+            } else {
+                System.out.println("File already exists.");
+            }
+        } catch (IOException e) {
+          System.out.println("An error occurred.");
+          e.printStackTrace();
+        }
+    }
+
+
+
 
 
     private static class Heartbeat implements Runnable {
@@ -141,9 +215,10 @@ public class App2 {
 
             //-------------------------------------
             // send heartbeat
+            //-------------------------------------
             try {
                 JSONObject jo = new JSONObject();
-                deviceIp = getIp(); //IP may have changed
+
                 jo.put("heartbeat", LocalDateTime.now().toString());
                 JSONObject joWrapper = new JSONObject();
                 joWrapper.put(deviceMac, jo);
@@ -159,7 +234,7 @@ public class App2 {
                 .newBuilder()
                 .proxy(ProxySelector.getDefault())
                 .build()
-                .send(request, HttpResponse.BodyHandlers.ofString());
+                .send(request, HttpResponse.BodyHandlers.ofString()); 
 
                 System.out.println("sent data: " + response.statusCode() + " " + json);
 
@@ -173,10 +248,12 @@ public class App2 {
                 System.out.println("ERROR sending data: " + e.getMessage());
             }
 
-
             //-------------------------------------
             // if timer has elapsed, upload PCAP file to Google cloud bucket
+            //-------------------------------------
             try {
+                uploadCaptures();
+                /*
                 if (lastCapture != null) {
                     System.out.println("lastCapture: " + lastCapture);
                     System.out.println("nextSend: " + nextSend);
@@ -187,6 +264,7 @@ public class App2 {
                         lastCapture = null;
                     }
                 }
+                */
             } catch (Exception e) {
                 System.out.println("Error Executing tcpdump command" + e);
             }
@@ -201,34 +279,29 @@ public class App2 {
  * NETWORK DISCOVERY
  *************************************************************/
 
-    static String getIp() {
+    static void getIp() {
         //method below works on linux not mac
-        String ip = "not found";
         try(final DatagramSocket socket = new DatagramSocket()){
             socket.connect(InetAddress.getByName("8.8.8.8"), 10002);
-            ip = socket.getLocalAddress().getHostAddress();
+            deviceIp = socket.getLocalAddress().getHostAddress();
         } catch (Exception e) {
             //TODO
         }
-        return ip;
     }
 
-    static String getMac(String ip) {
-        String mac = "not found";
+    static void getMac(String ip) {
         try {
             InetAddress localIP = InetAddress.getByName(ip);
             NetworkInterface ni = NetworkInterface.getByInetAddress(localIP);
             byte[] macAddress = ni.getHardwareAddress();
-
             String[] hexadecimal = new String[macAddress.length];
             for (int i = 0; i < macAddress.length; i++) {
                 hexadecimal[i] = String.format("%02X", macAddress[i]);
             }
-            mac = String.join("-", hexadecimal);
+            deviceMac = String.join("-", hexadecimal);
         } catch (Exception e) {
             //TODO
         }
-        return mac;
     }
 
     static void getNetstat() {
@@ -239,7 +312,6 @@ public class App2 {
             Process process = processBuilder.start();
             BufferedReader stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
             BufferedReader stdError = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-
             String s = null;
             int netstatOutputLineNumber = 0;
             int subnetChar = 0;
@@ -265,7 +337,6 @@ public class App2 {
                     ifaceChar = 72;
                     netstatOutputLineNumber = 1;
                 };
-                
             } 
             while ((s = stdError.readLine()) != null) {
                 System.out.println("error: " + s);
@@ -289,8 +360,7 @@ public class App2 {
             while ((s = stdInput.readLine()) != null) {
                 if (s.contains("nameserver")) { 
                     dnsServerIp = s.substring(11, s.length()).trim();
-                };
-                
+                };  
             } 
             while ((s = stdError.readLine()) != null) {
                 System.out.println("error: " + s);
@@ -315,7 +385,6 @@ public class App2 {
                 if (s.contains(gatewayIp)) { 
                     gatewayMac = s.substring(32, 50).trim();
                 };
-                
             } 
             while ((s = stdError.readLine()) != null) {
                 System.out.println("error: " + s);
@@ -349,4 +418,5 @@ public class App2 {
     }
 
 
+ 
 }

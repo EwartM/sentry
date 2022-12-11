@@ -52,6 +52,14 @@
         <version>3.8.0</version>
     </dependency>
 
+    <!-- https://mvnrepository.com/artifact/commons-codec/commons-codec -->
+    <dependency>
+        <groupId>commons-codec</groupId>
+        <artifactId>commons-codec</artifactId>
+        <version>1.15</version>
+    </dependency>
+
+
     <!-- https://mvnrepository.com/artifact/com.google.cloud/google-cloud-storage -->
     <dependency>
         <groupId>com.google.cloud</groupId>
