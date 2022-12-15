@@ -46,6 +46,7 @@ public class App2 {
     static String dhcpServerIp;
     static LocalDateTime nextSend = null;
     static LocalDateTime lastCapture = null; //timestamp of last captured packets 
+    
 
 /**************************************************************
  * MAIN
